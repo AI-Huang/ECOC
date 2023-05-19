@@ -1,0 +1,4 @@
+codebook,max_hamming_distance,expected_max_hamming_distance,Time used (s)
+hunqun_deng_c10_n5,4,4,0.000176
+hunqun_deng_c10_n17,8,14,0.488817
+hunqun_deng_c10_n23,12,16,163.668904

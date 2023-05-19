@@ -1,0 +1,19 @@
+num_classes: 81
+
+hunqun_deng_n17:
+  len_code: 17
+  num_ones: 8
+  min_hamming_distance: 8
+  max_hamming_distance: 18
+
+hunqun_deng_n23:
+  len_code: 23
+  num_ones: 11
+  min_hamming_distance: 10
+  max_hamming_distance: 20
+
+hunqun_deng_n35:
+  len_code: 35
+  num_ones: 17
+  min_hamming_distance: 14
+  max_hamming_distance: 28
