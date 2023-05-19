@@ -22,6 +22,10 @@ See `examples/code_sets.md`
 | ------------ | -------------------------------------------- |
 | Jun 20, 2020 | Initially implemented ECOC generation codes. |
 
+## Acknowledgement
+
+Thanks to Dr. Yunxiang Yao's (from ECE Dept. of HKUST) explaination on correcting codes.
+
 ## References
 
 - [1] [Applying Error-Correcting Output Coding to Enhance Convolutional Neural Network for Target Detection and Pattern Recognition](https://ieeexplore.ieee.org/document/5597751)
