@@ -3,17 +3,27 @@
 # @Date    : Jun-20-20 03:43
 # @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 
+import os
+import csv
+import torch
+from ecoc.math_utils import min_max_hamming_distance
 
-from itertools import combinations
 
+def read_codebook(codebook_file):
+    """read_codebook
+    """
+    if not os.path.isfile(codebook_file):
+        raise Exception('Unknown codebook_file: %s' % codebook_file)
 
-def hamming_distance(x: int, y: int) -> int:
-    n = x ^ y
-    count = 0
-    while count < n:
-        n &= n-1  # 清除最低位的1
-        count += 1
-    return count
+    codebook = []
+    with open(codebook_file) as csvfile:
+        reader = csv.reader(csvfile)
+        for i, row in enumerate(reader):
+            if i == 0:
+                continue
+            codebook.append(row[-1])
+
+    return codebook
 
 
 def code_set5() -> list:
@@ -67,18 +77,28 @@ def code_set23() -> list:
     return code_set
 
 
-def min_max_hamming_distance(code_set):
-    """一个 code_set 的码字间最小、最大汉明距离
+def get_codebook_tensor(codebook):
+    """get_codebook_tensor
     """
-    codes = [_ for _ in code_set.values()]
-    min_d, max_d = float("inf"), 0
-    for code_pair in combinations(codes, 2):
-        d = hamming_distance(code_pair[0], code_pair[1])
-        if d < min_d:
-            min_d = d
-        if d > max_d:
-            max_d = d
-    return min_d, max_d
+    num_classes, len_code = len(codebook), len(codebook[0])
+    codebook_tensor = torch.zeros(num_classes, len_code)
+    for i in range(num_classes):
+        for j in range(len_code):
+            # codebook_tensor[i][0] stands for classifier 0's output on class i
+            codebook_tensor[i][j] += int(codebook[i][j])
+
+    return codebook_tensor
+
+
+def main():
+    codebook_name = "hunqun_deng_c10_n5"
+    codebook_file = f"ecoc/codebooks/{codebook_name}.csv"
+    codebook = read_codebook(codebook_file)
+    print(codebook)
+
+    codebook_tensor = get_codebook_tensor(codebook)
+    print(codebook_tensor)
+    print(codebook_tensor[:, 0])
 
 
 def test():
@@ -97,4 +117,4 @@ def _test():
 
 
 if __name__ == "__main__":
-    _test()
+    main()

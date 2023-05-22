@@ -6,8 +6,34 @@ ECOC: Error-Correcting Output Codes
 
 ## Usage
 
-```python
-python3 ./pytorch/train_ecoc.py
+```bash
+python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+```
+
+### Finetune
+
+```bash
+python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+```
+
+### Baseline
+
+```bash
+python ./pytorch/train_lenet.py --do-train --do-eval --epochs 100 --batch-size 32  --loss cross_entropy
+```
+
+### Bug fixxing
+
+For `ModuleNotFoundError: No module named 'ecoc'` or `ModuleNotFoundError: No module named 'pytorch'` etc, add '.' to PYTHONPATH:
+
+```bash
+export PYTHONPATH=.:PYTHONPATH
+```
+
+Windows:
+
+```cmd
+set PYTHONPATH=%PYTHONPATH%;.
 ```
 
 ### Requirements

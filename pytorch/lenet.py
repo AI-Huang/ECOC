@@ -28,7 +28,7 @@ class LeNet5(nn.Module):
         self.conv1 = nn.Conv2d(1, 6, 5, padding=padding)
         self.conv2 = nn.Conv2d(6, 16, 5)
         # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(16 * 5 * 5, 120) # 5*5 from image dimension
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)  # 5*5 from image dimension
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, output_dim)
 
@@ -36,7 +36,8 @@ class LeNet5(nn.Module):
         # Max pooling over a (2, 2) window
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))  # conv1 pool
         x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))  # conv2 pool
-        x = x.view(-1, x.size()[1:].numel()) # flatten all dimensions except the batch dimension
+        # flatten all dimensions except the batch dimension
+        x = x.view(-1, x.size()[1:].numel())
         # x = torch.flatten(x, 1) is an alternative
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
