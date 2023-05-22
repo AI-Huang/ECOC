@@ -105,8 +105,9 @@ def test(model, test_loader, criterion, codebook_tensor, device, args):
             # Get the index of the max log-probability
             threshold = 0.5
             output_code = torch.as_tensor(
-                (output - threshold) > 0, dtype=torch.int32)
-            distances = torch.zeros(len(output_code), len(codebook_tensor))
+                (output - threshold) > 0, dtype=torch.int32).to(device)
+            distances = torch.zeros(
+                len(output_code), len(codebook_tensor)).to(device)
             for i, _out in enumerate(output_code):
                 for j, _code in enumerate(codebook_tensor):
                     distances[i][j] = (_out-_code).abs().sum()
@@ -181,14 +182,16 @@ def main():
 
     # Output dimension should be the length of ECOC code, not 10 for mnist anymore.
     # LeNet5
-    model = build_model(args.model_name, args.dataset_name, padding=2, output_dim=args.len_code).to(device)
+    model = build_model(args.model_name, args.dataset_name,
+                        padding=2, output_dim=args.len_code).to(device)
     # Load pretrained model
     if len(args.model_path) > 0:
         if os.path.exists(args.model_path) and args.model_path.endswith(".pt"):
             if not use_cuda:
                 model.load_state_dict(
-                    torch.load(args.model_path, map_location=torch.device('cpu'))
-                    )
+                    torch.load(args.model_path,
+                               map_location=torch.device('cpu'))
+                )
             else:
                 model.load_state_dict(torch.load(args.model_path))
             print("Load pretrained model successfully!")
@@ -213,7 +216,7 @@ def main():
     else:
         # TODO, other optimizers such as Adam
         pass
-    
+
     # Learning rate and scheduler
     scheduler = build_scheduler(optimizer, args.model_name)
 
@@ -238,12 +241,11 @@ def main():
         new_accuracy = test_result["test_accuracy"]
         if args.save_model and new_accuracy > current_accuracy:
             torch.save(model.state_dict(),
-                   os.path.join(output_dir, f"{args.model_name}_e{epoch}_testacc{str(new_accuracy)}.pt"))
+                       os.path.join(output_dir, f"{args.model_name}_e{epoch}_testacc{str(new_accuracy)}.pt"))
         current_accuracy = new_accuracy
 
         if scheduler:
             scheduler.step()
-
 
 
 if __name__ == '__main__':
