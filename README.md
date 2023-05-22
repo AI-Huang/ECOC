@@ -7,21 +7,26 @@ ECOC: Error-Correcting Output Codes
 ## Usage
 
 ```bash
-python ./pytorch/train_ecoc.py --model-name resnet18 lenet5 --lr 0.001 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+python ./pytorch/train.py --model-name lenet5 --lr 0.001 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 400 --batch-size 32 --loss binary_cross_entropy
+
 # ResNet18
-python ./pytorch/train_ecoc.py --model-name resnet18 --lr 0.1 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+python ./pytorch/train.py --model-name resnet18 --lr 0.1 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 200 --batch-size 32 --loss binary_cross_entropy
 ```
 
 ### Finetune
 
 ```bash
-python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy --model-path ./output/ECOC-LeNet-5_MNIST_sgd_20230520-020335/ECOC-LeNet-5.pt
+python ./pytorch/train.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 200 --batch-size 32 --loss binary_cross_entropy --model-path ./output/ECOC-LeNet-5_MNIST_sgd_20230520-020335/ECOC-LeNet-5.pt
 ```
 
 ### Baseline
 
 ```bash
-python ./pytorch/train_lenet.py --do-train --do-eval --epochs 100 --batch-size 32  --loss cross_entropy
+# LeNet5
+python ./pytorch/train.py --do-train --do-eval --epochs 200 --batch-size 32  --loss cross_entropy
+
+# ResNet18
+python ./pytorch/train.py --model-name resnet18 --lr 0.1 --do-train --do-eval --epochs 200 --batch-size 32 --loss cross_entropy
 ```
 
 ### Bug fixxing

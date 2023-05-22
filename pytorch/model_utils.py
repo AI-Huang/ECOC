@@ -13,6 +13,7 @@ __all__ = [
     "resnet18",
 ]
 
+
 def build_model(model_name, dataset_name, **kwargs):
     """build_model
     Input:
@@ -22,7 +23,8 @@ def build_model(model_name, dataset_name, **kwargs):
 
     """
     if model_name not in __all__:
-        raise ValueError(f"model_name ({model_name}) not in supported models: {__all__}.")
+        raise ValueError(
+            f"model_name ({model_name}) not in supported models: {__all__}.")
 
     if model_name == "lenet5":
         model = LeNet5(**kwargs)
@@ -39,16 +41,19 @@ def build_model(model_name, dataset_name, **kwargs):
 
     return model
 
+
 def build_scheduler(optimizer, model_name="resnet18"):
     """build_scheduler
     """
     scheduler = None
 
     if model_name not in __all__:
-        raise ValueError(f"model_name ({model_name}) not in supported models: {__all__}.")
-        
+        raise ValueError(
+            f"model_name ({model_name}) not in supported models: {__all__}.")
+
     if model_name == "resnet18":
         print("Using MultiStepLR.")
-        scheduler = MultiStepLR(optimizer, milestones=[91,137,182], gamma=0.1)
-        
+        scheduler = MultiStepLR(optimizer, milestones=[
+                                91, 137, 182], gamma=0.1)
+
     return scheduler

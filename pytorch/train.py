@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @Date    : Apr-17-20 02:45
+# @Date    : Sep-22-20 20:46
 # @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 # @RefLink : https://github.com/pytorch/examples/blob/master/mnist/main.py
 
@@ -16,6 +16,7 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 
 from ecoc.encode import get_codebook_tensor, read_codebook
+import pytorch.train_utils as train_utils
 from pytorch.model_utils import build_model, build_scheduler
 
 
@@ -23,7 +24,6 @@ def cmd_args():
     # Training parameters
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
     parser.add_argument('--model-name', type=str, default="lenet5")
-    parser.add_argument('--output-code', type=str, default='')
 
     # Pretrained model's path
     parser.add_argument('--model-path', type=str, default='')
@@ -45,7 +45,7 @@ def cmd_args():
     parser.add_argument('--gamma', type=float, default=0.7,
                         help='Learning rate step gamma (default: 0.7)')
     # Extended parameters for ECOC
-    parser.add_argument('--codebook_name', type=str, default="hunqun_deng_c10_n5",
+    parser.add_argument('--codebook_name', type=str, default=None,
                         help='ECOC codebook name.')
 
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -62,93 +62,40 @@ def cmd_args():
     args = parser.parse_args()
     if args.codebook_name is not None:
         args.output_code = "ecoc"
+    else:
+        args.output_code = None
 
     return args
-
-
-def train(model, train_loader, criterion, optimizer, epoch, device, codebook_tensor, args):
-    training_logs = []
-
-    model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
-        # Batch ECOC encoding
-        target_code = torch.zeros(len(data), args.len_code).to(device)
-        for i, _ in enumerate(target):
-            target_code[i] += codebook_tensor[_]
-        optimizer.zero_grad()
-        output = model(data)
-        output = torch.sigmoid(output)  # sigmoid activation
-        loss = criterion(output, target_code)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % args.log_interval == 0:
-            training_log = f"Train Epoch: {epoch}. Batch [{batch_idx}/{len(train_loader)}].\tSample [{batch_idx * len(data)}/{len(train_loader.dataset)} ({100. * batch_idx / len(train_loader):.0f}%)].\tLoss: {loss.item():.6f}"
-            print(training_log)
-            training_logs.append(training_log)
-
-    return training_logs
-
-
-def test(model, test_loader, criterion, codebook_tensor, device, args):
-    model.eval()
-    test_loss = 0
-    all_correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            target_code = torch.zeros(len(data), args.len_code).to(device)
-            for i, _ in enumerate(target):
-                target_code[i] += codebook_tensor[_]  # 0s and 1s
-            output = torch.sigmoid(model(data))
-
-            # Get the index of the max log-probability
-            threshold = 0.5
-            output_code = torch.as_tensor(
-                (output - threshold) > 0, dtype=torch.int32).to(device)
-            distances = torch.zeros(
-                len(output_code), len(codebook_tensor)).to(device)
-            for i, _out in enumerate(output_code):
-                for j, _code in enumerate(codebook_tensor):
-                    distances[i][j] = (_out-_code).abs().sum()
-            pred = distances.argmin(dim=1, keepdim=True).to(device)
-            # TODO, weak prediction whose d is too big
-            correct = pred.eq(target.view_as(pred)).sum().item()
-            all_correct += correct
-
-            # Sum up all batch loss
-            test_loss += criterion(output, target_code).item()
-
-    test_loss /= len(test_loader.dataset)
-    test_accuracy = 100. * all_correct / len(test_loader.dataset)
-
-    print(
-        f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: {all_correct}/{len(test_loader.dataset)} ({test_accuracy:.0f}%)\n")
-
-    return {"test_loss": test_loss, "test_accuracy": test_accuracy}
 
 
 def main():
     args = cmd_args()
     date_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = os.path.join(
-        "output", f"{args.model_name}_{args.output_code}_{args.dataset_name}_{args.optimizer}_{date_time}")
+    if args.output_code:
+        output_dir = os.path.join(
+            "output", f"{args.model_name}_{args.output_code}_{args.dataset_name}_{args.optimizer}_{date_time}")
+    else:
+        output_dir = os.path.join(
+            "output", f"{args.model_name}_{args.dataset_name}_{args.optimizer}_{date_time}")
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
+    device = torch.device("cuda" if use_cuda else "cpu")
+
     os.makedirs(output_dir, exist_ok=True)
 
     codebook_name = args.codebook_name
-    codebook_file = f"ecoc/codebooks/{codebook_name}.csv"
-    codebook = read_codebook(codebook_file)
+    if codebook_name:
+        codebook_file = f"ecoc/codebooks/{codebook_name}.csv"
+        codebook = read_codebook(codebook_file)
+        codebook_tensor = get_codebook_tensor(codebook).to(device)
+        args.num_classes, args.len_code = len(codebook), len(codebook[0])
+    else:
+        args.num_classes = 10
 
     # Log test results, write head row
     with open(os.path.join(output_dir, 'test.csv'), "a") as f:
         f.write(",".join(["epoch", "test_loss", "test_accuracy"])+'\n')
 
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    torch.manual_seed(args.seed)
-    device = torch.device("cuda" if use_cuda else "cpu")
-
-    codebook_tensor = get_codebook_tensor(codebook).to(device)
-    args.num_classes, args.len_code = len(codebook), len(codebook[0])
     kwargs = {'batch_size': args.batch_size}
     if use_cuda:
         torch.cuda.manual_seed(args.seed)
@@ -182,8 +129,12 @@ def main():
 
     # Output dimension should be the length of ECOC code, not 10 for mnist anymore.
     # LeNet5
+    if args.output_code == "ecoc":
+        output_dim = args.len_code
+    else:
+        output_dim = 10
     model = build_model(args.model_name, args.dataset_name,
-                        padding=2, output_dim=args.len_code).to(device)
+                        padding=2, output_dim=output_dim).to(device)
     # Load pretrained model
     if len(args.model_path) > 0:
         if os.path.exists(args.model_path) and args.model_path.endswith(".pt"):
@@ -201,7 +152,7 @@ def main():
     print(f"Loss function: {args.loss}.")
     if args.loss == "cross_entropy":
         criterion = nn.CrossEntropyLoss().to(device)
-        criterion_test = nn.CrossEntropyLoss(reduction='sum').to(args.device)
+        criterion_test = nn.CrossEntropyLoss(reduction='sum').to(device)
     elif args.loss == "binary_cross_entropy":
         criterion = nn.BCELoss().to(device)  # Modification for ECOC
         criterion_test = nn.BCELoss(reduction='sum').to(device)
@@ -220,18 +171,28 @@ def main():
     # Learning rate and scheduler
     scheduler = build_scheduler(optimizer, args.model_name)
 
+    # Trainer function
+    if args.output_code == "ecoc":
+        train = train_utils.train_ecoc
+        test = train_utils.test_ecoc
+        kwargs = {"codebook_tensor": codebook_tensor}
+    else:
+        train = train_utils.train
+        test = train_utils.test
+        kwargs = {}
+
     # Training body
     current_accuracy = 0.0
     for epoch in tqdm(range(args.epochs)):
         if args.do_train:
             training_logs = train(
-                model, train_loader, criterion, optimizer, epoch, device, codebook_tensor,  args)
+                model, train_loader, criterion, optimizer, epoch, device, args, **kwargs)
             with open(os.path.join(output_dir, 'training_logs.txt'), "a") as f:
                 for line in training_logs:
                     f.write(line + '\n')
         if args.do_eval:
             test_result = test(model, test_loader,
-                               criterion_test, codebook_tensor, device, args)
+                               criterion_test, device, args, **kwargs)
             with open(os.path.join(output_dir, 'test.csv'), "a") as f:
                 f.write(",".join(
                     [str(_) for _ in [
