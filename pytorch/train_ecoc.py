@@ -4,19 +4,19 @@
 # @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 # @RefLink : https://github.com/pytorch/examples/blob/master/mnist/main.py
 
-import os
-import json
-import numpy as np
 import argparse
+import json
+import os
 from datetime import datetime
-from tqdm import tqdm
+
+import numpy as np
 import torch
-from torch import nn, optim
-from torch.autograd import Variable
-import torch.nn.functional as F
+import torch.nn as nn
 from torchvision import datasets, transforms
-from pytorch.model_utils import build_model
-from ecoc.encode import code_set5, read_codebook, get_codebook_tensor
+from tqdm import tqdm
+
+from ecoc.encode import get_codebook_tensor, read_codebook
+from pytorch.model_utils import build_model, build_scheduler
 
 
 def cmd_args():
@@ -40,7 +40,7 @@ def cmd_args():
     parser.add_argument('--optimizer', type=str, default='sgd')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 50)')
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR')
+    parser.add_argument('--lr', type=float, default=0.1, metavar='LR')
     parser.add_argument('--momentum', type=float, default=0.9, metavar='M')
     parser.add_argument('--gamma', type=float, default=0.7,
                         help='Learning rate step gamma (default: 0.7)')
@@ -64,46 +64,6 @@ def cmd_args():
         args.output_code = "ecoc"
 
     return args
-
-
-def train_old(train_loader):
-
-    N = 5  # encode length
-    code_set = code_set5()  # in CPU, dict: int->int
-
-    # criterion = nn.CrossEntropyLoss(size_average=False)
-    criterion = nn.BCELoss(size_average=False)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=args.lr, betas=(0.9, 0.99))
-
-    for epoch in range(num_epoch):  # a total iteration/epoch
-        for batch_idx, (X_batch, y_batch) in enumerate(train_loader):
-            X_batch.to(device)
-            y_batch.to(device)
-            X_batch, y_batch = Variable(X_batch), Variable(y_batch)
-            # Encode label
-            y_batch = torch.Tensor([code_set[int(_)] for _ in y_batch])
-            b = torch.zeros(y_batch.size()[0], N)
-            for i, _ in enumerate(y_batch.clone()):
-                bits = torch.zeros(N)
-                for j in range(N):
-                    if _ % 2 == 1:
-                        bits[j] = 1
-                    _ //= 2  # floor div
-                b[i] = bits.clone()
-            y_batch = b
-            if use_cuda:
-                y_batch = y_batch.cuda()  # to GPU again
-            optimizer.zero_grad()
-            output = model(X_batch)
-            m = nn.Softmax()
-            pred = m(output)
-            loss = criterion(pred, y_batch)
-            loss.backward()
-            optimizer.step()
-            if batch_idx % 100 == 0:  # print every 100 steps
-                print(
-                    f"Train epoch: {epoch}, [{batch_idx*batch_size}/{num_train} ({batch_idx*batch_size/num_train*100:.2f}%)].\tLoss: {loss:.6f}")
 
 
 def train(model, train_loader, criterion, optimizer, epoch, device, codebook_tensor, args):
@@ -221,10 +181,10 @@ def main():
 
     # Output dimension should be the length of ECOC code, not 10 for mnist anymore.
     # LeNet5
-    model = build_model(args.model_name, padding=2, output_dim=args.len_code).to(device)
+    model = build_model(args.model_name, args.dataset_name, padding=2, output_dim=args.len_code).to(device)
     # Load pretrained model
-    if len(args.model_path) > 0 and os.path.exists(args.model_path):
-        if args.model_path.endswith(".pt"):
+    if len(args.model_path) > 0:
+        if os.path.exists(args.model_path) and args.model_path.endswith(".pt"):
             if not use_cuda:
                 model.load_state_dict(
                     torch.load(args.model_path, map_location=torch.device('cpu'))
@@ -232,8 +192,8 @@ def main():
             else:
                 model.load_state_dict(torch.load(args.model_path))
             print("Load pretrained model successfully!")
-    else:
-        print(f"{args.model_path} NOT exists!")
+        else:
+            print(f"{args.model_path} NOT exists!")
 
     print(f"Loss function: {args.loss}.")
     if args.loss == "cross_entropy":
@@ -246,14 +206,16 @@ def main():
         criterion = nn.L1Loss().to(device)  # Modification for ECOC
         criterion_test = nn.L1Loss(reduction='sum').to(device)
 
-    # Learning rate and scheduler
-    scheduler = None
+    # Optimizer
     if args.optimizer == "sgd":
         optimizer = torch.optim.SGD(model.parameters(),
                                     lr=args.lr, momentum=args.momentum)
     else:
         # TODO, other optimizers such as Adam
-        StepLR(optimizer, step_size=1, gamma=args.gamma)
+        pass
+    
+    # Learning rate and scheduler
+    scheduler = build_scheduler(optimizer, args.model_name)
 
     # Training body
     current_accuracy = 0.0

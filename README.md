@@ -7,7 +7,9 @@ ECOC: Error-Correcting Output Codes
 ## Usage
 
 ```bash
-python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+python ./pytorch/train_ecoc.py --model-name resnet18 lenet5 --lr 0.001 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+# ResNet18
+python ./pytorch/train_ecoc.py --model-name resnet18 --lr 0.1 --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
 ```
 
 ### Finetune
