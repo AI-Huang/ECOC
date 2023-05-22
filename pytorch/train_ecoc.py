@@ -9,21 +9,25 @@ import json
 import numpy as np
 import argparse
 from datetime import datetime
+from tqdm import tqdm
 import torch
 from torch import nn, optim
 from torch.autograd import Variable
 import torch.nn.functional as F
-from tqdm import tqdm
 from torchvision import datasets, transforms
-from pytorch.lenet import LeNet5
+from pytorch.model_utils import build_model
 from ecoc.encode import code_set5, read_codebook, get_codebook_tensor
 
 
 def cmd_args():
     # Training parameters
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-    parser.add_argument('--model-name', type=str, default="ECOC-LeNet-5")
-    parser.add_argument('--dataset-name', type=str, default="MNIST")
+    parser.add_argument('--model-name', type=str, default="lenet5")
+    parser.add_argument('--output-code', type=str, default='')
+
+    # Pretrained model's path
+    parser.add_argument('--model-path', type=str, default='')
+    parser.add_argument('--dataset-name', type=str, default="mnist")
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
@@ -56,20 +60,13 @@ def cmd_args():
     parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
     args = parser.parse_args()
+    if args.codebook_name is not None:
+        args.output_code = "ecoc"
 
     return args
 
 
 def train_old(train_loader):
-
-    # parameters
-    BATCH_SIZE = 64
-
-    print("Loading config...")
-    with open('./config.json', 'r') as f:
-        CONFIG = json.load(f)
-    DATASETS_DIR = CONFIG["DATASETS_DIR"]
-    MODEL_DIR = CONFIG["MODEL_DIR"]
 
     N = 5  # encode length
     code_set = code_set5()  # in CPU, dict: int->int
@@ -77,7 +74,7 @@ def train_old(train_loader):
     # criterion = nn.CrossEntropyLoss(size_average=False)
     criterion = nn.BCELoss(size_average=False)
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=1e-3, betas=(0.9, 0.99))
+        model.parameters(), lr=args.lr, betas=(0.9, 0.99))
 
     for epoch in range(num_epoch):  # a total iteration/epoch
         for batch_idx, (X_batch, y_batch) in enumerate(train_loader):
@@ -107,10 +104,6 @@ def train_old(train_loader):
             if batch_idx % 100 == 0:  # print every 100 steps
                 print(
                     f"Train epoch: {epoch}, [{batch_idx*batch_size}/{num_train} ({batch_idx*batch_size/num_train*100:.2f}%)].\tLoss: {loss:.6f}")
-
-    model_path = os.path.join(MODEL_DIR, "test.pth")
-    torch.save(model.state_dict(), model_path)
-    print(f"Model saved to {model_path}.")
 
 
 def train(model, train_loader, criterion, optimizer, epoch, device, codebook_tensor, args):
@@ -178,7 +171,7 @@ def main():
     args = cmd_args()
     date_time = datetime.now().strftime("%Y%m%d-%H%M%S")
     output_dir = os.path.join(
-        "output", f"{args.model_name}_{args.dataset_name}_{args.optimizer}_{date_time}")
+        "output", f"{args.model_name}_{args.output_code}_{args.dataset_name}_{args.optimizer}_{date_time}")
     os.makedirs(output_dir, exist_ok=True)
 
     codebook_name = args.codebook_name
@@ -226,8 +219,22 @@ def main():
     train_loader = torch.utils.data.DataLoader(mnist_train, **kwargs)
     test_loader = torch.utils.data.DataLoader(mnist_test, **kwargs)
 
-    # output dimension should be the length of ECOC code, not 10 for mnist anymore.
-    model = LeNet5(padding=2, output_dim=args.len_code).to(device)
+    # Output dimension should be the length of ECOC code, not 10 for mnist anymore.
+    # LeNet5
+    model = build_model(args.model_name, padding=2, output_dim=args.len_code).to(device)
+    # Load pretrained model
+    if len(args.model_path) > 0 and os.path.exists(args.model_path):
+        if args.model_path.endswith(".pt"):
+            if not use_cuda:
+                model.load_state_dict(
+                    torch.load(args.model_path, map_location=torch.device('cpu'))
+                    )
+            else:
+                model.load_state_dict(torch.load(args.model_path))
+            print("Load pretrained model successfully!")
+    else:
+        print(f"{args.model_path} NOT exists!")
+
     print(f"Loss function: {args.loss}.")
     if args.loss == "cross_entropy":
         criterion = nn.CrossEntropyLoss().to(device)
@@ -239,6 +246,7 @@ def main():
         criterion = nn.L1Loss().to(device)  # Modification for ECOC
         criterion_test = nn.L1Loss(reduction='sum').to(device)
 
+    # Learning rate and scheduler
     scheduler = None
     if args.optimizer == "sgd":
         optimizer = torch.optim.SGD(model.parameters(),

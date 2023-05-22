@@ -13,7 +13,7 @@ python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --d
 ### Finetune
 
 ```bash
-python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy
+python ./pytorch/train_ecoc.py --codebook_name=hunqun_deng_c10_n5 --do-train --do-eval --epochs 100 --batch-size 32 --loss binary_cross_entropy --model-path ./output/ECOC-LeNet-5_MNIST_sgd_20230520-020335/ECOC-LeNet-5.pt
 ```
 
 ### Baseline
