@@ -182,7 +182,7 @@ def main():
         kwargs = {}
 
     # Training body
-    current_accuracy = 0.0
+    best_accuracy = 0.0
     for epoch in tqdm(range(args.epochs)):
         if args.do_train:
             training_logs = train(
@@ -200,10 +200,11 @@ def main():
                     ]]
                 ) + '\n')
         new_accuracy = test_result["test_accuracy"]
-        if args.save_model and new_accuracy > current_accuracy:
-            torch.save(model.state_dict(),
-                       os.path.join(output_dir, f"{args.model_name}_e{epoch}_testacc{str(new_accuracy)}.pt"))
-        current_accuracy = new_accuracy
+        if new_accuracy > best_accuracy:  # Better accuracy arrives
+            best_accuracy = new_accuracy
+            if args.save_model:
+                torch.save(model.state_dict(),
+                           os.path.join(output_dir, f"{args.model_name}_e{epoch}_testacc{str(best_accuracy)}.pt"))
 
         if scheduler:
             scheduler.step()
